@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  MERIDIAN — Weekly Planner for Medical Students
+  ============================================================
+
+  HOW TO USE THIS FILE:
+  1. Open VSCode
+  2. Create a new file called "index.html"
+  3. Paste this entire file in
+  4. Right-click → "Open with Live Server" (install the Live Server
+     extension in VSCode if you haven't already)
+  5. Your app opens in the browser automatically
+
+  WHAT IS AN HTML FILE?
+  An HTML file is just a text file that browsers know how to read.
+  It contains three things:
+    - HTML: the structure (what exists on the page)
+    - CSS:  the style (what it looks like)
+    - JS:   the logic (what happens when you click things)
+
+  All three live in this one file to keep things simple.
+  Later, you'd split them into separate files.
+-->
+
+<!DOCTYPE html>
+<!-- ↑ This tells the browser: "this is an HTML5 document" -->
+
+<html lang="en">
+<!-- ↑ <html> is the root container — everything goes inside it -->
+<!-- lang="en" tells screen readers and search engines it's in English -->
+
+<head>
+  <!--
+    <head> contains information ABOUT the page, not visible content.
+    Think of it as the settings panel.
+  -->
+
+  <meta charset="UTF-8">
+  <!-- ↑ Tells the browser to use UTF-8 character encoding
+       (so it can display é, ñ, 中, etc. correctly) -->
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ↑ This makes the page work properly on mobile phones.
+       Without it, phones zoom out to show the desktop version. -->
+
+  <title>Meridian — Weekly Planner</title>
+  <!-- ↑ What appears in the browser tab -->
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  >
+  <!--
+    ↑ This loads fonts from Google Fonts (free).
+    "Instrument Serif" is used for headings — it has a literary, editorial feel.
+    "Geist" is used for body text — clean and modern.
+    Without this line, the browser would use a default font like Times New Roman.
+  -->
+
+  <style>
+    /*
+      ============================================================
+      CSS — HOW TO READ THIS
+      ============================================================
+
+      CSS is written as "rules". Each rule looks like:
+        selector { property: value; }
+
+      The SELECTOR is what you're styling (e.g. "body", ".card", "#title")
+      The PROPERTY is what you're changing (e.g. "color", "font-size")
+      The VALUE is what you're setting it to (e.g. "red", "16px")
+
+      A dot (.) means "any element with this class"
+        → .card { } styles all elements with class="card"
+
+      A hash (#) means "the element with this ID"
+        → #title { } styles the element with id="title"
+
+      No prefix means "all elements of this type"
+        → button { } styles ALL buttons on the page
+    */
+
+    /* ── DESIGN TOKENS ──────────────────────────────────────── */
+    /*
+      :root is a special selector — it means "the root of the document"
+      (basically the whole page). We use it to define CSS variables —
+      think of these as named colour swatches or settings you can reuse
+      everywhere. Change one variable here and it updates across the whole app.
+    */
+    :root {
+      /* Colours */
+      --bg:           #f5f2ed;   /* warm off-white — the page background */
+      --surface:      #fefcf9;   /* slightly lighter — used for cards */
+      --ink:          #18160f;   /* near-black — main text */
+      --ink-2:        #3a3729;   /* slightly lighter — secondary text */
+      --muted:        #9b9485;   /* grey-brown — placeholder text, labels */
+      --border:       #e2dcd3;   /* soft border colour */
+      --shadow:       0 2px 12px rgba(24,22,15,0.07); /* subtle drop shadow */
+
+      /* Category colours — each area of life gets its own colour */
+      --study:        #3d6b5e;   /* deep teal — study/lectures */
+      --study-bg:     #eaf3f0;   /* light teal — study chip backgrounds */
+      --personal:     #6b4d7a;   /* muted purple — personal goals */
+      --personal-bg:  #f2edf7;
+      --free:         #b5722a;   /* warm amber — free time */
+      --free-bg:      #fdf3e4;
+      --health:       #a84848;   /* muted red — health & sleep */
+      --health-bg:    #fdeaea;
+
+      /* Typography */
+      --font-serif:   'Instrument Serif', Georgia, serif;
+      --font-sans:    'Geist', system-ui, sans-serif;
+
+      /* Spacing — consistent gaps throughout the app */
+      --space-xs:     4px;
+      --space-sm:     8px;
+      --space-md:     16px;
+      --space-lg:     24px;
+      --space-xl:     40px;
+
+      /* Border radius — how rounded corners are */
+      --radius-sm:    6px;
+      --radius-md:    10px;
+      --radius-lg:    16px;
+      --radius-full:  9999px;  /* fully round — for pills/chips */
+    }
+
+    /* ── RESET ───────────────────────────────────────────────── */
+    /*
+      Browsers apply their own default styles to everything.
+      Buttons have borders, headings have margins, etc.
+      A "reset" removes all those defaults so we start from a clean slate.
+    */
+    *, *::before, *::after {
+      box-sizing: border-box;  /* makes width/height include padding+border */
+      margin: 0;               /* remove all default margins */
+      padding: 0;              /* remove all default padding */
+    }
+
+    /* ── BASE STYLES ─────────────────────────────────────────── */
+    html {
+      scroll-behavior: smooth; /* smooth scroll when jumping to sections */
+    }
+
+    body {
+      /*
+        body is the visible part of the page.
+        Everything the user sees is inside body.
+      */
+      background: var(--bg);        /* use our warm off-white */
+      color: var(--ink);            /* dark text by default */
+      font-family: var(--font-sans); /* Geist for body text */
+      font-weight: 300;             /* light weight — feels airy */
+      font-size: 15px;              /* base size — everything else is relative */
+      line-height: 1.6;             /* space between lines — easier to read */
+      min-height: 100vh;            /* at least full viewport height */
+    }
+
+    /* ── LAYOUT ──────────────────────────────────────────────── */
+    /*
+      We use CSS Grid for the main two-column layout.
+      Grid is like a table — you define columns and rows,
+      then place elements in them.
+    */
+    .app-shell {
+      display: grid;
+      /*
+        Two columns:
+        - 240px fixed-width sidebar on the left
+        - 1fr = "one fraction of remaining space" — takes everything else
+      */
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;            /* full height of viewport */
+    }
+
+    /* ── SIDEBAR ─────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--ink);       /* dark background for contrast */
+      color: rgba(245,242,237,0.85); /* slightly transparent white text */
+      padding: var(--space-lg) var(--space-md);
+      display: flex;
+      flex-direction: column;       /* stack children vertically */
+      gap: var(--space-lg);
+      position: sticky;             /* sidebar stays in view as you scroll */
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;             /* scroll if content overflows */
+    }
+
+    /* Logo area */
+    .logo {
+      padding-bottom: var(--space-md);
+      border-bottom: 1px solid rgba(245,242,237,0.08); /* very subtle divider */
+    }
+    .logo-name {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 400;
+      font-style: italic;           /* serif italic looks editorial */
+      color: rgba(245,242,237,0.95);
+      letter-spacing: -0.2px;
+    }
+    .logo-tagline {
+      font-size: 11px;
+      color: rgba(245,242,237,0.35);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* Navigation section */
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(245,242,237,0.25);
+      margin-bottom: 6px;
+      padding-left: 10px;
+    }
+
+    /* Individual nav buttons */
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      width: 100%;                  /* fill sidebar width */
+      padding: 9px 10px;
+      border: none;                 /* remove default button border */
+      background: transparent;      /* no background by default */
+      color: rgba(245,242,237,0.55);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 300;
+      border-radius: var(--radius-sm);
+      cursor: pointer;              /* show hand cursor on hover */
+      text-align: left;
+      transition: all 0.15s ease;  /* smooth colour change on hover */
+    }
+    .nav-btn:hover {
+      background: rgba(245,242,237,0.06);
+      color: rgba(245,242,237,0.9);
+    }
+    /* The .active class is added by JavaScript when a tab is selected */
+    .nav-btn.active {
+      background: rgba(245,242,237,0.1);
+      color: rgba(245,242,237,0.95);
+      font-weight: 400;
+    }
+
+    /* Coloured dot next to category nav items */
+    .cat-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;           /* perfectly round */
+      flex-shrink: 0;               /* don't let it shrink */
+    }
+
+    /* ── MAIN CONTENT AREA ───────────────────────────────────── */
+    .main {
+      padding: var(--space-xl) var(--space-lg);
+      overflow-y: auto;
+    }
+
+    /* ── SCREENS ─────────────────────────────────────────────── */
+    /*
+      Each "screen" is a section of the app (Today, Week, AI, Accountability).
+      Only one is visible at a time.
+      display: none hides it completely.
+      display: block shows it.
+      JavaScript swaps the .active class to switch screens.
+    */
+    .screen { display: none; }
+    .screen.active {
+      display: block;
+      /* Fade in when shown */
+      animation: fadeUp 0.3s ease both;
+    }
+
+    /* Keyframes define the steps of an animation */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;              /* start invisible */
+        transform: translateY(10px); /* start 10px below */
+      }
+      to {
+        opacity: 1;              /* end fully visible */
+        transform: translateY(0); /* end at normal position */
+      }
+    }
+
+    /* ── PAGE HEADER ─────────────────────────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--space-xl);
+      flex-wrap: wrap;             /* wrap on small screens */
+      gap: var(--space-md);
+    }
+    .page-title {
+      font-family: var(--font-serif);
+      font-size: 36px;
+      font-weight: 400;
+      line-height: 1.1;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+    .page-title em {
+      font-style: italic;
+      color: var(--study);         /* teal for emphasis */
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    /* ── BUTTONS ─────────────────────────────────────────────── */
+    .btn {
+      padding: 9px 18px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    /* Primary = dark fill */
+    .btn-primary {
+      background: var(--ink);
+      color: var(--bg);
+    }
+    .btn-primary:hover { opacity: 0.82; transform: translateY(-1px); }
+
+    /* Outline = transparent with border */
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--ink-2); }
+
+    /* ── CARDS ───────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+    }
+    .card-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: var(--space-sm);
+    }
+    .card-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: var(--space-md);
+    }
+
+    /* ── TODAY SCREEN ────────────────────────────────────────── */
+    /*
+      CSS Grid again — but this time with "auto-fit" columns.
+      This means: fit as many 200px columns as will fit,
+      and stretch them to fill the remaining space.
+      On a wide screen = 3 columns. On mobile = 1 column.
+    */
+    .today-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+    .today-grid .card.wide {
+      grid-column: 1 / -1; /* span all columns */
+    }
+
+    /* Task rows inside Today view */
+    .task-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .task-row:last-child { border-bottom: none; }
+
+    /* The checkbox */
+    .task-check {
+      width: 17px;
+      height: 17px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .task-check.checked {
+      background: var(--study);
+      border-color: var(--study);
+    }
+    .task-check.checked::after {
+      content: '✓';
+      font-size: 10px;
+      color: white;
+      font-weight: 700;
+    }
+
+    /* The task name text */
+    .task-name {
+      font-size: 14px;
+      color: var(--ink-2);
+      flex: 1;                      /* take remaining space */
+      line-height: 1.4;
+    }
+    .task-name.done {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    /* Category pill badge */
+    .cat-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .cat-badge.study    { background: var(--study-bg);    color: var(--study);    }
+    .cat-badge.personal { background: var(--personal-bg); color: var(--personal); }
+    .cat-badge.free     { background: var(--free-bg);     color: var(--free);     }
+    .cat-badge.health   { background: var(--health-bg);   color: var(--health);   }
+
+    /* Priority indicator */
+    .priority-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .priority-dot.high   { background: #d04a4a; }
+    .priority-dot.medium { background: #d4a028; }
+    .priority-dot.low    { background: #5a9e6f; }
+
+    /* ── WEEK GRID ────────────────────────────────────────────── */
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr); /* 7 equal columns = 7 days */
+      gap: var(--space-sm);
+    }
+    .day-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-sm) var(--space-md);
+      min-height: 200px;
+    }
+    .day-col.is-today {
+      border-color: var(--study);   /* highlight today */
+    }
+    .day-name {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .day-number {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      color: var(--ink);
+      margin-bottom: var(--space-sm);
+    }
+    .is-today .day-number { color: var(--study); }
+
+    /* Small task chips in the week view */
+    .task-chip {
+      padding: 4px 7px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      line-height: 1.3;
+      display: block;
+    }
+    .task-chip:hover { opacity: 0.7; }
+    .task-chip.done  { opacity: 0.4; text-decoration: line-through; }
+    .task-chip.study    { background: var(--study-bg);    color: var(--study);    }
+    .task-chip.personal { background: var(--personal-bg); color: var(--personal); }
+    .task-chip.free     { background: var(--free-bg);     color: var(--free);     }
+    .task-chip.health   { background: var(--health-bg);   color: var(--health);   }
+
+    .add-to-day {
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-sans);
+      padding: 4px 0;
+      margin-top: 4px;
+      transition: color 0.15s;
+    }
+    .add-to-day:hover { color: var(--ink); }
+
+    /* ── AI SCREEN ────────────────────────────────────────────── */
+    .ai-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+    }
+    .ai-box-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: var(--space-md);
+    }
+    .ai-input-row {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+
+    /* Text inputs — the boxes where you type */
+    input[type="text"],
+    textarea,
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 300;
+      color: var(--ink);
+      outline: none;               /* remove default blue focus ring */
+      transition: border-color 0.18s;
+      width: 100%;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--study);  /* teal border when focused */
+    }
+    textarea {
+      resize: vertical;            /* user can drag to resize vertically */
+      min-height: 80px;
+    }
+    select option { background: var(--surface); }
+
+    /* Loading dots animation */
+    .loading {
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 13px;
+      color: var(--muted);
+      padding: 8px 0;
+    }
+    .loading.visible { display: flex; }
+    .dot-row span {
+      display: inline-block;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--study);
+      animation: blink 1.2s infinite;
+      margin: 0 2px;
+    }
+    .dot-row span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-row span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* AI response box */
+    .ai-response {
+      display: none;
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--ink-2);
+      padding: var(--space-md);
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      border-left: 3px solid var(--study);
+      white-space: pre-wrap;        /* preserve line breaks */
+      margin-top: var(--space-sm);
+    }
+    .ai-response.visible { display: block; animation: fadeUp 0.3s ease; }
+
+    /* Quick prompt chips */
+    .quick-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: var(--space-md);
+    }
+    .qp-chip {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      color: var(--ink-2);
+      cursor: pointer;
+      background: var(--bg);
+      transition: all 0.15s;
+      font-family: var(--font-sans);
+    }
+    .qp-chip:hover { border-color: var(--study); color: var(--study); }
+
+    /* ── ACCOUNTABILITY ───────────────────────────────────────── */
+    .acc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .acc-grid .wide { grid-column: 1 / -1; }
+
+    /* Day streak dots */
+    .streak-dots {
+      display: flex;
+      gap: 8px;
+      margin-top: var(--space-sm);
+    }
+    .streak-day {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+      transition: all 0.2s;
+    }
+    .streak-day.checked {
+      background: var(--study);
+      border-color: var(--study);
+      color: white;
+    }
+    .streak-day.today {
+      border-color: var(--study);
+      color: var(--study);
+      font-weight: 500;
+    }
+
+    /* Mood buttons */
+    .mood-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mood-btn {
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      color: var(--ink-2);
+      cursor: pointer;
+      background: var(--bg);
+      transition: all 0.15s;
+      font-family: var(--font-sans);
+      text-align: left;
+    }
+    .mood-btn:hover { border-color: var(--study); color: var(--study); background: var(--study-bg); }
+    .mood-btn.selected { border-color: var(--study); color: var(--study); background: var(--study-bg); font-weight: 400; }
+
+    /* Progress bars for the completion stats */
+    .prog-bar-wrap { margin-bottom: 14px; }
+    .prog-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ink-2);
+      margin-bottom: 5px;
+    }
+    .prog-bar-track {
+      height: 5px;
+      background: var(--border);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+    .prog-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.5s ease;
+    }
+
+    /* ── MODAL (Add Task popup) ───────────────────────────────── */
+    /*
+      A modal is a popup box that appears over the page.
+      It has a dark "overlay" behind it that you can click to close.
+    */
+    .modal-overlay {
+      position: fixed;             /* fixed = stays in place when you scroll */
+      inset: 0;                    /* covers the whole screen (top/right/bottom/left = 0) */
+      background: rgba(24,22,15,0.5); /* semi-transparent dark background */
+      backdrop-filter: blur(4px);  /* blur the content behind */
+      z-index: 1000;               /* on top of everything else */
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl) var(--space-lg);
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 8px 40px rgba(24,22,15,0.2);
+      animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-title {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: var(--space-lg);
+    }
+
+    /* Form field wrapper */
+    .field { margin-bottom: var(--space-md); }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Category selector pills in the modal */
+    .cat-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cat-pill {
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      background: var(--bg);
+      transition: all 0.15s;
+      font-family: var(--font-sans);
+    }
+    /* Each category pill has its own active colour */
+    .cat-pill.active.study    { background: var(--study-bg);    border-color: var(--study);    color: var(--study);    }
+    .cat-pill.active.personal { background: var(--personal-bg); border-color: var(--personal); color: var(--personal); }
+    .cat-pill.active.free     { background: var(--free-bg);     border-color: var(--free);     color: var(--free);     }
+    .cat-pill.active.health   { background: var(--health-bg);   border-color: var(--health);   color: var(--health);   }
+
+    .modal-footer {
+      display: flex;
+      gap: var(--space-sm);
+      justify-content: flex-end;
+      margin-top: var(--space-lg);
+    }
+
+    /* ── EMPTY STATE ─────────────────────────────────────────── */
+    /* Shown when there's no data to display */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-xl) var(--space-lg);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .empty-icon {
+      font-size: 28px;
+      display: block;
+      margin-bottom: 8px;
+      opacity: 0.35;
+    }
+
+    /* ── MOBILE RESPONSIVE ───────────────────────────────────── */
+    /*
+      @media rules apply CSS only when the screen matches a condition.
+      max-width: 768px means "apply this on screens smaller than 768px" — i.e. phones/tablets.
+    */
+    @media (max-width: 768px) {
+      .app-shell {
+        grid-template-columns: 1fr; /* single column on mobile */
+      }
+      .sidebar {
+        display: none;              /* hide sidebar (would need a hamburger menu instead) */
+      }
+      .week-grid {
+        grid-template-columns: repeat(3, 1fr); /* 3 days per row on mobile */
+      }
+      .acc-grid,
+      .today-grid {
+        grid-template-columns: 1fr; /* single column */
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!--
+    ============================================================
+    HTML — THE STRUCTURE
+    ============================================================
+
+    HTML is made of "elements" — things like <div>, <p>, <button>.
+    Elements can have:
+      - class="..."  → for styling with CSS
+      - id="..."     → for finding with JavaScript
+      - onclick="..."→ for running JS when clicked
+
+    IMPORTANT: Every opening tag needs a closing tag.
+      <div> opens a box, </div> closes it.
+      Everything between is "inside" the box.
+  -->
+
+  <!-- ── MAIN APP SHELL ──────────────────────────────────────── -->
+  <div class="app-shell">
+
+    <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- Logo -->
+      <div class="logo">
+        <p class="logo-name">Meridian</p>
+        <p class="logo-tagline">Your week, whole</p>
+      </div>
+
+      <!-- Week info -->
+      <div>
+        <p class="nav-group-label">This week</p>
+        <p id="sidebar-week" style="font-size:13px;color:rgba(245,242,237,0.6);">Loading...</p>
+      </div>
+
+      <!-- Main navigation -->
+      <nav>
+        <div class="nav-group">
+          <p class="nav-group-label">Views</p>
+
+          <!--
+            onclick="goTo('today', this)" means:
+            "When clicked, run the goTo function with arguments 'today' and this button"
+            JavaScript uses this to switch which screen is visible.
+          -->
+          <button class="nav-btn active" onclick="goTo('today', this)">
+            ☀️ Today's focus
+          </button>
+          <button class="nav-btn" onclick="goTo('week', this)">
+            📅 Week view
+          </button>
+          <button class="nav-btn" onclick="goTo('ai', this)">
+            ✦ AI prioritisation
+          </button>
+          <button class="nav-btn" onclick="goTo('accountability', this)">
+            🎯 Accountability
+          </button>
+        </div>
+
+        <!-- Category filters -->
+        <div class="nav-group" style="margin-top:8px;">
+          <p class="nav-group-label">Categories</p>
+          <button class="nav-btn" onclick="goTo('week', this)">
+            <span class="cat-dot" style="background:var(--study)"></span>
+            Study &amp; lectures
+          </button>
+          <button class="nav-btn" onclick="goTo('week', this)">
+            <span class="cat-dot" style="background:var(--personal)"></span>
+            Personal goals
+          </button>
+          <button class="nav-btn" onclick="goTo('week', this)">
+            <span class="cat-dot" style="background:var(--free)"></span>
+            Free time
+          </button>
+          <button class="nav-btn" onclick="goTo('week', this)">
+            <span class="cat-dot" style="background:var(--health)"></span>
+            Health &amp; sleep
+          </button>
+        </div>
+      </nav>
+
+      <!-- Weekly progress (populated by JS) -->
+      <div style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(245,242,237,0.08);">
+        <p class="nav-group-label">This week</p>
+        <div id="sidebar-progress"></div>
+      </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ─────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- ══ SCREEN: TODAY ═══════════════════════════════════ -->
+      <section id="screen-today" class="screen active">
+        <div class="page-header">
+          <div>
+            <!--
+              id="greeting" lets JavaScript find this element and change its text.
+              The text starts as a placeholder — JS will update it.
+            -->
+            <h1 class="page-title">Good <em id="greeting">morning</em></h1>
+            <p class="page-subtitle" id="today-date">Loading date...</p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="openModal()">+ Add task</button>
+          </div>
+        </div>
+
+        <!-- Today grid: top 3 priorities + category columns -->
+        <div class="today-grid">
+
+          <!-- Top 3 priorities — spans full width -->
+          <div class="card wide">
+            <p class="card-label">Today's top 3 — what actually matters</p>
+            <!--
+              id="top3-list" → JavaScript fills this with your 3 most important tasks.
+              It starts empty — JS adds content after the page loads.
+            -->
+            <div id="top3-list">
+              <div class="empty-state">
+                <span class="empty-icon">✦</span>
+                Add tasks and your top 3 will appear here
+              </div>
+            </div>
+          </div>
+
+          <!-- Study column -->
+          <div class="card">
+            <p class="card-label" style="color:var(--study)">📚 Study &amp; lectures</p>
+            <div id="today-study">
+              <div class="empty-state" style="padding:12px 0;">
+                <span class="empty-icon">📖</span>Nothing yet
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal + free + health column -->
+          <div class="card">
+            <p class="card-label" style="color:var(--personal)">🌿 Life &amp; wellbeing</p>
+            <div id="today-life">
+              <div class="empty-state" style="padding:12px 0;">
+                <span class="empty-icon">🌱</span>Nothing yet
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ══ SCREEN: WEEK ════════════════════════════════════ -->
+      <section id="screen-week" class="screen">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Your <em>week</em></h1>
+            <p class="page-subtitle">Everything in one place — study, life, and space to breathe</p>
+          </div>
+          <button class="btn btn-ghost" onclick="openModal()">+ Add task</button>
+        </div>
+
+        <!--
+          id="week-grid" → JavaScript builds the 7 day columns inside here.
+          We don't write the days by hand because JavaScript can calculate
+          the correct dates for the current week automatically.
+        -->
+        <div class="week-grid" id="week-grid"></div>
+      </section>
+
+      <!-- ══ SCREEN: AI ══════════════════════════════════════ -->
+      <section id="screen-ai" class="screen">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title"><em>AI</em> prioritisation</h1>
+            <p class="page-subtitle">Tell it what's overwhelming you — it helps you decide what actually matters</p>
+          </div>
+        </div>
+
+        <!-- Box 1: Prioritise my tasks -->
+        <div class="ai-box">
+          <p class="ai-box-title">What's on your plate?</p>
+          <div class="ai-input-row">
+            <input
+              type="text"
+              id="ai-input-1"
+              placeholder="e.g. I have a renal tutorial tomorrow, 3 lectures behind, gym I keep skipping, and parents expecting a call…"
+              onkeydown="if(event.key==='Enter') callAI('ai-input-1','ai-loading-1','ai-response-1','prioritise')"
+            >
+            <button
+              class="btn btn-primary"
+              onclick="callAI('ai-input-1','ai-loading-1','ai-response-1','prioritise')"
+            >
+              Prioritise →
+            </button>
+          </div>
+          <!-- Loading dots — hidden until AI is thinking -->
+          <div class="loading" id="ai-loading-1">
+            <div class="dot-row"><span></span><span></span><span></span></div>
+            Thinking through your week…
+          </div>
+          <!-- AI response — hidden until AI replies -->
+          <div class="ai-response" id="ai-response-1"></div>
+        </div>
+
+        <!-- Box 2: Ask anything -->
+        <div class="ai-box">
+          <p class="ai-box-title">Ask anything about your week</p>
+
+          <!-- Quick prompt chips — click to pre-fill the input -->
+          <div class="quick-prompts">
+            <button class="qp-chip" onclick="prefill('ai-input-2', 'How do I make time for things I actually want, not just obligations?')">
+              Making time for myself
+            </button>
+            <button class="qp-chip" onclick="prefill('ai-input-2', 'I procrastinate every evening. What should I do instead?')">
+              Evening procrastination
+            </button>
+            <button class="qp-chip" onclick="prefill('ai-input-2', 'How do I stay on top of med school lectures without burning out?')">
+              Study without burnout
+            </button>
+            <button class="qp-chip" onclick="prefill('ai-input-2', 'Everything feels like an obligation. How do I fix that?')">
+              Everything feels like a chore
+            </button>
+          </div>
+
+          <div class="ai-input-row">
+            <input
+              type="text"
+              id="ai-input-2"
+              placeholder="Ask anything about balance, study, or planning…"
+              onkeydown="if(event.key==='Enter') callAI('ai-input-2','ai-loading-2','ai-response-2','general')"
+            >
+            <button
+              class="btn btn-primary"
+              onclick="callAI('ai-input-2','ai-loading-2','ai-response-2','general')"
+            >
+              Ask →
+            </button>
+          </div>
+          <div class="loading" id="ai-loading-2">
+            <div class="dot-row"><span></span><span></span><span></span></div>
+            Thinking…
+          </div>
+          <div class="ai-response" id="ai-response-2"></div>
+        </div>
+      </section>
+
+      <!-- ══ SCREEN: ACCOUNTABILITY ══════════════════════════ -->
+      <section id="screen-accountability" class="screen">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Stay <em>accountable</em></h1>
+            <p class="page-subtitle">Check in daily — even a bad day logged is a day you showed up</p>
+          </div>
+        </div>
+
+        <div class="acc-grid">
+
+          <!-- Streak tracker -->
+          <div class="card wide">
+            <p class="card-label">Your check-in streak</p>
+            <p class="card-title">Days checked in this week</p>
+            <!--
+              id="streak-dots" → JavaScript draws 7 circles here (Mon–Sun)
+              and colours in the ones where you've checked in.
+            -->
+            <div class="streak-dots" id="streak-dots"></div>
+          </div>
+
+          <!-- Daily check-in -->
+          <div class="card wide">
+            <p class="card-label">Daily check-in</p>
+            <p class="card-title" style="font-style:italic;font-family:var(--font-serif);">
+              "How did today go compared to what you planned?"
+            </p>
+            <div class="mood-options" id="mood-options">
+              <!-- Each button calls selectMood() when clicked -->
+              <button class="mood-btn" onclick="selectMood(this, 'crushed')">🔥 Crushed it — did everything I planned</button>
+              <button class="mood-btn" onclick="selectMood(this, 'mostly')">✅ Mostly good — got the important things done</button>
+              <button class="mood-btn" onclick="selectMood(this, 'struggled')">😐 Struggled — got some things done but fell short</button>
+              <button class="mood-btn" onclick="selectMood(this, 'off')">😔 Off day — barely got anything done</button>
+            </div>
+
+            <!--
+              This section is hidden until you pick a mood.
+              style="display:none" hides it initially.
+              JavaScript shows it after you click a mood button.
+            -->
+            <div id="checkin-extra" style="display:none;margin-top:16px;">
+              <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">
+                What got in the way? <span style="opacity:0.6">(optional)</span>
+              </p>
+              <textarea
+                id="reflection-text"
+                placeholder="e.g. Spent 2 hours on my phone instead of reviewing lectures…"
+              ></textarea>
+              <button
+                class="btn btn-primary"
+                style="margin-top:10px;width:100%;"
+                onclick="submitCheckin()"
+              >
+                Get accountability feedback →
+              </button>
+            </div>
+
+            <div class="loading" id="acc-loading" style="margin-top:12px;">
+              <div class="dot-row"><span></span><span></span><span></span></div>
+              Reflecting on your day…
+            </div>
+            <div class="ai-response" id="acc-response" style="margin-top:12px;"></div>
+          </div>
+
+          <!-- Completion stats -->
+          <div class="card wide">
+            <p class="card-label">This week at a glance</p>
+            <p class="card-title">Completion by category</p>
+            <!--
+              id="completion-stats" → JavaScript fills this with progress bars.
+            -->
+            <div id="completion-stats"></div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ── ADD TASK MODAL ─────────────────────────────────────── -->
+  <!--
+    This modal (popup) is hidden by default.
+    When you click "+ Add task", JavaScript adds the "open" class
+    which changes display from none to flex, making it visible.
+    Clicking outside or Cancel removes "open" to hide it again.
+  -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+    <div class="modal">
+      <p class="modal-title">Add a task</p>
+
+      <div class="field">
+        <label class="field-label">Task name</label>
+        <input type="text" id="new-task-name" placeholder="e.g. Review renal lecture, Call Mum, Gym session…">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Category</label>
+        <div class="cat-pills" id="cat-pills">
+          <!-- onclick calls selectCat() to highlight this pill and store the selection -->
+          <div class="cat-pill active study" onclick="selectCat(this,'study')">📚 Study</div>
+          <div class="cat-pill personal"     onclick="selectCat(this,'personal')">🌿 Personal</div>
+          <div class="cat-pill free"         onclick="selectCat(this,'free')">☀️ Free time</div>
+          <div class="cat-pill health"       onclick="selectCat(this,'health')">❤️ Health</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Day of the week</label>
+        <select id="new-task-day">
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+          <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Priority</label>
+        <select id="new-task-priority">
+          <option value="high">🔴 High — must do today</option>
+          <option value="medium">🟡 Medium — should do</option>
+          <option value="low">🟢 Low — nice to do</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTask()">Add task</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      ============================================================
+      JAVASCRIPT — HOW TO READ THIS
+      ============================================================
+
+      JavaScript makes the page interactive. It runs in your browser.
+
+      Key concepts:
+
+      VARIABLES — storing information:
+        let name = "John";     // can be changed later
+        const pi = 3.14;       // cannot be changed (constant)
+
+      FUNCTIONS — reusable blocks of code:
+        function greet(name) {
+          return "Hello " + name;
+        }
+        greet("John"); // → "Hello John"
+
+      ARRAYS — ordered lists:
+        let fruits = ["apple", "banana", "cherry"];
+        fruits[0]; // → "apple" (0 = first item)
+
+      OBJECTS — named properties:
+        let task = {
+          name: "Review lecture",
+          category: "study",
+          done: false
+        };
+        task.name; // → "Review lecture"
+
+      DOM — Document Object Model:
+        The browser turns HTML into a tree of "nodes" (elements).
+        JavaScript can find elements by ID and change them.
+        document.getElementById("title") finds <h1 id="title">
+
+      LOCALSTORAGE — saving data in the browser:
+        localStorage.setItem("key", JSON.stringify(data));
+        JSON.parse(localStorage.getItem("key"));
+        This is like a tiny database that lives in your browser.
+        Data survives page refreshes but not clearing browser data.
+
+      ASYNC / AWAIT — waiting for things:
+        Some things take time (like calling an API).
+        async functions can wait for them with "await".
+        While waiting, the rest of the browser keeps working.
+    */
+
+    // ── STORED STATE ──────────────────────────────────────────
+    /*
+      These variables hold the app's data in memory.
+      They're loaded from localStorage when the app starts,
+      and saved back to localStorage whenever they change.
+
+      Think of it as RAM (fast, temporary) vs hard drive (slow, permanent).
+      localStorage is our "hard drive" here.
+    */
+
+    // Load tasks from localStorage, or start with an empty array
+    let tasks    = JSON.parse(localStorage.getItem('m_tasks')    || '[]');
+    let checkins = JSON.parse(localStorage.getItem('m_checkins') || '[]');
+
+    // Track which category is selected in the add-task modal
+    let activeCat  = 'study';
+    // Track which mood was selected in the check-in
+    let activeMood = null;
+
+    /*
+      THE TASK DATA MODEL (what a single task looks like):
+      {
+        id:       "1748123456789",   // unique number — Date.now() gives us this
+        name:     "Review renal lecture",
+        cat:      "study",           // "study" | "personal" | "free" | "health"
+        day:      0,                 // 0=Monday ... 6=Sunday
+        priority: "high",            // "high" | "medium" | "low"
+        done:     false,             // has the user ticked it?
+        created:  "2026-05-24T..."   // ISO timestamp
+      }
+    */
+
+    // ── SAVE HELPERS ──────────────────────────────────────────
+    function saveTasks() {
+      /*
+        JSON.stringify() converts a JavaScript object/array to a text string.
+        localStorage can only store text, not objects.
+        So we "stringify" before saving and "parse" when loading.
+      */
+      localStorage.setItem('m_tasks', JSON.stringify(tasks));
+    }
+
+    function saveCheckins() {
+      localStorage.setItem('m_checkins', JSON.stringify(checkins));
+    }
+
+    // ── DATE HELPERS ──────────────────────────────────────────
+    function getTodayIndex() {
+      /*
+        getDay() returns 0=Sunday, 1=Monday, ..., 6=Saturday.
+        We want 0=Monday, so we remap:
+        Sunday (0) → 6
+        Monday (1) → 0
+        Tuesday (2) → 1, etc.
+      */
+      const d = new Date().getDay();
+      return d === 0 ? 6 : d - 1;
+    }
+
+    function getMonday() {
+      /*
+        Finds the Monday of the current week.
+        We use this to label the week in the sidebar and week view.
+      */
+      const now = new Date();
+      const day = now.getDay();           // 0=Sun ... 6=Sat
+      const diff = day === 0 ? -6 : 1 - day; // how many days back to Monday
+      const mon = new Date(now);
+      mon.setDate(now.getDate() + diff);
+      mon.setHours(0, 0, 0, 0);          // midnight
+      return mon;
+    }
+
+    function formatDate(date, opts) {
+      // Shortcut for formatting dates in Australian format (en-AU)
+      return date.toLocaleDateString('en-AU', opts);
+    }
+
+    // ── INITIALISATION ────────────────────────────────────────
+    function init() {
+      /*
+        init() runs when the page first loads (see the call at the bottom).
+        It sets up all the dynamic content that JavaScript controls.
+      */
+
+      // Set the greeting based on time of day
+      const hour = new Date().getHours();
+      const greetEl = document.getElementById('greeting');
+      if (greetEl) {
+        greetEl.textContent = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+      }
+
+      // Set today's date in the subtitle
+      const dateEl = document.getElementById('today-date');
+      if (dateEl) {
+        dateEl.textContent = formatDate(new Date(), {
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+      }
+
+      // Set the week label in the sidebar
+      const mon = getMonday();
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const weekEl = document.getElementById('sidebar-week');
+      if (weekEl) {
+        weekEl.textContent = `${formatDate(mon, {day:'numeric',month:'short'})} – ${formatDate(sun, {day:'numeric',month:'short'})}`;
+      }
+
+      // Set today's day as the default in the add-task modal
+      document.getElementById('new-task-day').value = getTodayIndex();
+
+      // Render all the dynamic content
+      renderAll();
+    }
+
+    // ── RENDER FUNCTIONS ──────────────────────────────────────
+    /*
+      Each render function takes the current data and turns it into HTML.
+      We call renderAll() whenever data changes so everything stays in sync.
+    */
+
+    function renderAll() {
+      renderToday();
+      renderWeek();
+      renderStreak();
+      renderProgress();
+      renderCompletion();
+    }
+
+    function renderToday() {
+      const today = getTodayIndex();
+      const todayTasks = tasks.filter(t => t.day === today);
+      /*
+        .filter() creates a new array containing only items where
+        the condition is true. Here: only tasks for today.
+      */
+
+      // Top 3: high priority first, then others, then take first 3
+      const highPri = todayTasks.filter(t => t.priority === 'high');
+      const others  = todayTasks.filter(t => t.priority !== 'high');
+      const top3    = [...highPri, ...others].slice(0, 3);
+      // [...a, ...b] spreads both arrays into one. .slice(0, 3) takes first 3 items.
+
+      const top3El = document.getElementById('top3-list');
+      if (top3.length === 0) {
+        top3El.innerHTML = `<div class="empty-state">
+          <span class="empty-icon">✦</span>
+          Add tasks for today to see your focus
+        </div>`;
+      } else {
+        top3El.innerHTML = top3.map(taskRowHTML).join('');
+        // .map() transforms each task into an HTML string.
+        // .join('') glues them together without commas.
+      }
+
+      // Study tasks
+      const studyEl = document.getElementById('today-study');
+      const studyTasks = todayTasks.filter(t => t.cat === 'study');
+      studyEl.innerHTML = studyTasks.length
+        ? studyTasks.map(taskRowHTML).join('')
+        : `<div class="empty-state" style="padding:8px 0;font-size:12px;"><span class="empty-icon">📖</span>Nothing yet</div>`;
+
+      // Life tasks (personal + free + health)
+      const lifeEl = document.getElementById('today-life');
+      const lifeTasks = todayTasks.filter(t => t.cat !== 'study');
+      lifeEl.innerHTML = lifeTasks.length
+        ? lifeTasks.map(taskRowHTML).join('')
+        : `<div class="empty-state" style="padding:8px 0;font-size:12px;"><span class="empty-icon">🌱</span>Nothing yet</div>`;
+    }
+
+    function taskRowHTML(task) {
+      /*
+        Template literals (backticks `) let us embed variables in strings with ${}.
+        This function returns an HTML string for one task row.
+      */
+      const catLabels = { study: 'Study', personal: 'Personal', free: 'Free', health: 'Health' };
+      return `
+        <div class="task-row">
+          <div class="task-check ${task.done ? 'checked' : ''}"
+               onclick="toggleTask('${task.id}')">
+          </div>
+          <div class="priority-dot ${task.priority}"></div>
+          <span class="task-name ${task.done ? 'done' : ''}">${task.name}</span>
+          <span class="cat-badge ${task.cat}">${catLabels[task.cat]}</span>
+        </div>
+      `;
+    }
+
+    function renderWeek() {
+      const grid   = document.getElementById('week-grid');
+      const today  = getTodayIndex();
+      const monday = getMonday();
+      const days   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+      grid.innerHTML = days.map((dayName, i) => {
+        // Calculate the date for this column
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+
+        const dayTasks = tasks.filter(t => t.day === i);
+
+        const chips = dayTasks.map(t => `
+          <span class="task-chip ${t.cat} ${t.done ? 'done' : ''}"
+                onclick="toggleTask('${t.id}')">
+            ${t.name}
+          </span>
+        `).join('');
+
+        return `
+          <div class="day-col ${i === today ? 'is-today' : ''}">
+            <p class="day-name">${dayName}</p>
+            <p class="day-number">${date.getDate()}</p>
+            ${chips}
+            <button class="add-to-day" onclick="openModalForDay(${i})">+ add</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStreak() {
+      const el = document.getElementById('streak-dots');
+      if (!el) return;
+      const today = getTodayIndex();
+      const days  = ['M','T','W','T','F','S','S'];
+
+      el.innerHTML = days.map((d, i) => {
+        const hasCheckin = checkins.some(c => c.day === i);
+        // .some() returns true if at least one item in the array matches the condition
+        const cls = hasCheckin ? 'checked' : i === today ? 'today' : '';
+        return `<div class="streak-day ${cls}" title="${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}">
+          ${hasCheckin ? '✓' : d}
+        </div>`;
+      }).join('');
+    }
+
+    function renderProgress() {
+      const el = document.getElementById('sidebar-progress');
+      if (!el) return;
+      const cats = [
+        { key: 'study',    label: 'Study',    color: 'var(--study)'    },
+        { key: 'personal', label: 'Personal', color: 'var(--personal)' },
+        { key: 'free',     label: 'Free',     color: 'var(--free)'     },
+        { key: 'health',   label: 'Health',   color: 'var(--health)'   },
+      ];
+
+      el.innerHTML = cats.map(c => {
+        const total = tasks.filter(t => t.cat === c.key).length;
+        const done  = tasks.filter(t => t.cat === c.key && t.done).length;
+        const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+        return `
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(245,242,237,0.4);margin-bottom:4px;">
+              <span>${c.label}</span><span>${done}/${total}</span>
+            </div>
+            <div style="height:2px;background:rgba(245,242,237,0.1);border-radius:2px;">
+              <div style="height:100%;width:${pct}%;background:${c.color};border-radius:2px;transition:width 0.5s;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCompletion() {
+      const el = document.getElementById('completion-stats');
+      if (!el) return;
+      const cats = [
+        { key: 'study',    label: '📚 Study',     color: 'var(--study)'    },
+        { key: 'personal', label: '🌿 Personal',  color: 'var(--personal)' },
+        { key: 'free',     label: '☀️ Free time', color: 'var(--free)'     },
+        { key: 'health',   label: '❤️ Health',    color: 'var(--health)'   },
+      ];
+
+      el.innerHTML = cats.map(c => {
+        const total = tasks.filter(t => t.cat === c.key).length;
+        const done  = tasks.filter(t => t.cat === c.key && t.done).length;
+        const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+        return `
+          <div class="prog-bar-wrap">
+            <div class="prog-bar-labels">
+              <span>${c.label}</span>
+              <span style="color:var(--muted)">${done}/${total} · ${pct}%</span>
+            </div>
+            <div class="prog-bar-track">
+              <div class="prog-bar-fill" style="width:${pct}%;background:${c.color};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── NAVIGATION ────────────────────────────────────────────
+    function goTo(screenName, btn) {
+      // Hide all screens
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      // Show the target screen
+      document.getElementById('screen-' + screenName).classList.add('active');
+      // Update nav button styles
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      // Re-render in case data changed
+      renderAll();
+    }
+
+    // ── MODAL ─────────────────────────────────────────────────
+    function openModal() {
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('new-task-name').focus(); // auto-focus the input
+    }
+
+    function openModalForDay(dayIndex) {
+      openModal();
+      document.getElementById('new-task-day').value = dayIndex;
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+
+    function closeModalOutside(event) {
+      /*
+        event.target is the element that was clicked.
+        If it's the overlay itself (not a child element), close the modal.
+        This lets clicking outside the modal box close it.
+      */
+      if (event.target === document.getElementById('modal-overlay')) {
+        closeModal();
+      }
+    }
+
+    function selectCat(el, cat) {
+      // Remove "active" from all pills
+      document.querySelectorAll('.cat-pill').forEach(p => {
+        p.className = `cat-pill ${p.dataset.cat || cat}`;
+        // We'll use onclick-set data instead
+        p.classList.remove('active');
+      });
+      // Add "active" to the clicked pill
+      el.classList.add('active');
+      activeCat = cat;
+    }
+
+    function saveTask() {
+      const nameInput = document.getElementById('new-task-name');
+      const name = nameInput.value.trim(); // .trim() removes leading/trailing spaces
+      if (!name) return; // don't save empty tasks
+
+      // Create the task object
+      const task = {
+        id:       Date.now().toString(), // unique ID based on current timestamp
+        name:     name,
+        cat:      activeCat,
+        day:      parseInt(document.getElementById('new-task-day').value),
+        // parseInt() converts "0" (string) to 0 (number)
+        priority: document.getElementById('new-task-priority').value,
+        done:     false,
+        created:  new Date().toISOString(), // e.g. "2026-05-24T09:30:00.000Z"
+      };
+
+      tasks.push(task); // add to our array
+      saveTasks();      // save to localStorage
+      closeModal();     // close the popup
+      nameInput.value = ''; // clear the input for next time
+      renderAll();      // update the UI
+    }
+
+    // ── TASK INTERACTION ──────────────────────────────────────
+    function toggleTask(id) {
+      /*
+        Find the task with this ID and flip its "done" state.
+        true → false, false → true
+      */
+      const task = tasks.find(t => t.id === id);
+      // .find() returns the first item where the condition is true
+      if (task) {
+        task.done = !task.done; // ! means "not" — flips true/false
+        saveTasks();
+        renderAll();
+      }
+    }
+
+    // ── AI CALLS ──────────────────────────────────────────────
+    /*
+      This is where we call the Anthropic Claude API.
+
+      API = Application Programming Interface.
+      Think of it as a waiter: we send a request, it returns a response.
+
+      fetch() is a built-in JavaScript function for making HTTP requests.
+      It's "async" because it takes time — we "await" the result.
+
+      IMPORTANT: The API key is embedded here for simplicity,
+      but in a real app you'd NEVER put it in front-end code.
+      It should live in a back-end server or environment variable.
+      For a personal project, this is fine. Don't share your key publicly.
+    */
+
+    const AI_SYSTEM_PROMPT = `You are Meridian's AI advisor — a warm, practical planner for a medical student.
+You understand the pressure of med school, the guilt of never having enough time,
+the frustration of sacrificing everything you enjoy just to keep up.
+Give short, direct, actionable advice. Max 3-4 short paragraphs.
+No bullet points — write in plain, human prose.
+Acknowledge the emotional reality first, then give practical guidance.
+End with one specific thing they can do in the next hour.`;
+
+    async function callAI(inputId, loadingId, responseId, mode) {
+      const input    = document.getElementById(inputId);
+      const loadingEl = document.getElementById(loadingId);
+      const responseEl = document.getElementById(responseId);
+      const text = input.value.trim();
+      if (!text) return;
+
+      // Show loading dots, hide previous response
+      loadingEl.classList.add('visible');
+      responseEl.classList.remove('visible');
+
+      // Build a summary of current tasks to give the AI context
+      const taskSummary = tasks.length > 0
+        ? tasks.map(t =>
+            `${t.name} (${t.cat}, ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][t.day]}, ${t.priority} priority${t.done ? ', ✓ done' : ''})`
+          ).join('; ')
+        : 'No tasks added yet.';
+
+      // The message we send to the AI
+      const userMessage = mode === 'prioritise'
+        ? `My tasks this week: ${taskSummary}.\n\nI'm feeling overwhelmed by: "${text}"\n\nHelp me prioritise and plan.`
+        : text;
+
+      try {
+        /*
+          fetch() sends an HTTP request to the Anthropic API.
+          We use POST because we're sending data (not just requesting it).
+          The body contains our request in JSON format.
+        */
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // 'anthropic-api-key': 'your-key-here' ← add this when self-hosting
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 800,
+            system: AI_SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userMessage }]
+          })
+        });
+
+        const data  = await response.json();
+        // .json() parses the response text as JSON
+
+        const reply = data.content?.map(c => c.text || '').join('') || 'No response received.';
+        // ?. is "optional chaining" — avoids errors if data.content is undefined
+
+        responseEl.textContent = reply;
+        responseEl.classList.add('visible');
+
+      } catch (error) {
+        // If something goes wrong, show an error message
+        responseEl.textContent = 'Could not connect to AI. Check your internet connection and try again.';
+        responseEl.classList.add('visible');
+        console.error('AI error:', error); // log to browser console for debugging
+      }
+
+      loadingEl.classList.remove('visible');
+    }
+
+    function prefill(inputId, text) {
+      // Pre-fills an input field and calls the AI immediately
+      document.getElementById(inputId).value = text;
+      callAI(inputId, 'ai-loading-2', 'ai-response-2', 'general');
+    }
+
+    // ── ACCOUNTABILITY ────────────────────────────────────────
+    function selectMood(btn, mood) {
+      // Remove "selected" from all mood buttons
+      document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+      // Highlight the clicked one
+      btn.classList.add('selected');
+      activeMood = mood;
+      // Show the reflection textarea
+      document.getElementById('checkin-extra').style.display = 'block';
+    }
+
+    async function submitCheckin() {
+      if (!activeMood) return;
+      const reflection = document.getElementById('reflection-text').value.trim();
+      const today = getTodayIndex();
+      const days  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+      // Save the check-in (replace any existing one for today)
+      checkins = checkins.filter(c => c.day !== today);
+      checkins.push({ day: today, mood: activeMood, reflection, date: new Date().toISOString() });
+      saveCheckins();
+      renderStreak();
+
+      const loadingEl  = document.getElementById('acc-loading');
+      const responseEl = document.getElementById('acc-response');
+      loadingEl.classList.add('visible');
+      responseEl.classList.remove('visible');
+
+      const moodLabels = { crushed: 'Crushed it', mostly: 'Mostly good', struggled: 'Struggled', off: 'Off day' };
+      const todayTasks = tasks.filter(t => t.day === today);
+      const taskSummary = todayTasks.length > 0
+        ? todayTasks.map(t => `${t.name} (${t.done ? 'done' : 'not done'})`).join(', ')
+        : 'no tasks logged today';
+
+      const message = `Day rating: ${moodLabels[activeMood]}.
+Today's tasks: ${taskSummary}.
+Reflection: "${reflection || 'none provided'}".
+Give me warm, honest accountability feedback and one small thing to do tomorrow.`;
+
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 600,
+            system: `You are a warm, honest accountability partner for a medical student.
+Never lecture or be preachy. Acknowledge feelings first.
+Name one thing they did well, even on bad days.
+Give one small, specific thing to do tomorrow.
+Max 3 short paragraphs. Human tone — not corporate.`,
+            messages: [{ role: 'user', content: message }]
+          })
+        });
+        const data  = await response.json();
+        const reply = data.content?.map(c => c.text || '').join('') || '';
+        responseEl.textContent = reply;
+        responseEl.classList.add('visible');
+      } catch (e) {
+        responseEl.textContent = 'Could not connect. But logging your check-in still counts — well done for showing up.';
+        responseEl.classList.add('visible');
+      }
+
+      loadingEl.classList.remove('visible');
+    }
+
+    // ── START THE APP ─────────────────────────────────────────
+    /*
+      This runs init() as soon as the script is parsed.
+      It's the "entry point" — where execution begins.
+    */
+    init();
+
+  </script>
+</body>
+</html>

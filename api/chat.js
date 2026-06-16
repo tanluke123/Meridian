@@ -1,73 +1,116 @@
+
 // api/chat.js
 // ============================================================
-// WHAT IS THIS FILE?
-// This is a Vercel "serverless function" — a tiny piece of code
-// that runs on Vercel's servers, not in the user's browser.
+// GROQ VERSION REPLACED WITH GOOGLE GEMINI
 //
-// WHY DO WE NEED IT?
-// Browsers block direct calls to the Anthropic API (for security).
-// So instead of: Browser → Anthropic (blocked)
-// We do:         Browser → This function → Anthropic (works!)
+// Gemini is Google's free AI API — no credit card needed.
 //
-// Your API key lives here as an environment variable — never
-// visible to anyone looking at your website's source code.
+// HOW TO GET YOUR GEMINI API KEY:
+// 1. Go to aistudio.google.com
+// 2. Sign in with your Google account
+// 3. Click "Get API key" → "Create API key"
+// 4. Copy the key
+// 5. Add it to Vercel: Settings → Environment Variables
+//    Name:  GEMINI_API_KEY
+//    Value: your key
 //
-// WHERE DOES THIS FILE LIVE IN YOUR REPO?
-// It must be at: api/chat.js  (inside a folder called "api")
-// Vercel automatically turns any file in /api into a URL endpoint.
-// So this becomes: https://your-site.vercel.app/api/chat
+// This file lives at: api/chat.js in your GitHub repo
+// Vercel turns it into: https://your-site.vercel.app/api/chat
 // ============================================================
 
 export default async function handler(req, res) {
 
-  // Only allow POST requests — this is an API endpoint, not a webpage
+  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Pull the messages and system prompt out of the request body
-  // These come from your index.html's fetch('/api/chat', ...) call
   const { messages, system } = req.body;
 
-  // Basic validation — don't proceed if there's nothing to send
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array is required' });
   }
 
   try {
     /*
-      process.env.ANTHROPIC_API_KEY reads from Vercel's environment variables.
-      You set this in: Vercel → your project → Settings → Environment Variables
-      It never appears in your code or in the browser — it's a secret on the server.
+      Gemini has a different API format to both Anthropic and Groq.
+      Key differences:
+        - URL includes your API key as a query parameter (not in headers)
+        - Messages are called "contents" not "messages"
+        - Each message has "parts" instead of "content"
+        - System prompt is a separate "systemInstruction" field
+        - Role "assistant" is called "model" in Gemini
+      
+      We handle all of this here so index.html doesn't need to change at all.
     */
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: system || '',
-        messages: messages
-      })
-    });
 
-    // If Anthropic returned an error, pass it through
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Anthropic API error:', errorData);
-      return res.status(response.status).json({ error: 'Anthropic API error', details: errorData });
+    // Convert Anthropic-style messages to Gemini format
+    // Anthropic: { role: "user", content: "hello" }
+    // Gemini:    { role: "user", parts: [{ text: "hello" }] }
+    const geminiContents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      // Gemini calls the assistant "model" instead of "assistant"
+      parts: [{ text: m.content }]
+    }));
+
+    const geminiBody = {
+      contents: geminiContents,
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.7   // 0 = very precise, 1 = more creative. 0.7 is a good balance.
+      }
+    };
+
+    // Add system instruction if provided
+    if (system) {
+      geminiBody.systemInstruction = {
+        parts: [{ text: system }]
+      };
     }
 
-    // Forward the successful response back to the browser
+    /*
+      Gemini's API URL includes the model name and your API key.
+      We use gemini-1.5-flash — Google's fastest free model.
+      gemini-1.5-pro is more powerful but has lower free rate limits.
+    */
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    const response = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Gemini API error:', errorData);
+      return res.status(response.status).json({ error: 'Gemini API error', details: errorData });
+    }
+
     const data = await response.json();
-    return res.status(200).json(data);
+
+    /*
+      Gemini returns:
+        data.candidates[0].content.parts[0].text
+
+      We reformat this to match Anthropic's format:
+        { content: [{ type: 'text', text: '...' }] }
+
+      This means index.html doesn't need any changes — it reads
+      data.content[0].text the same way it always has.
+    */
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
+
+    const reformatted = {
+      content: [{ type: 'text', text }]
+    };
+
+    return res.status(200).json(reformatted);
 
   } catch (error) {
     console.error('Server error:', error);
-    return res.status(500).json({ error: 'Failed to contact AI — check your API key in Vercel environment variables' });
+    return res.status(500).json({
+      error: 'Failed to contact AI — check your GEMINI_API_KEY in Vercel environment variables'
+    });
   }
 }

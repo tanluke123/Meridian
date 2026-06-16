@@ -51,6 +51,14 @@
     href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&display=swap"
     rel="stylesheet"
   >
+
+  <!--
+    SUPABASE SDK — this loads the Supabase JavaScript library from a CDN.
+    A CDN (Content Delivery Network) is a server that hosts popular libraries
+    so you don't have to download and host them yourself.
+    This one line gives us access to all of Supabase's tools.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!--
     ↑ This loads fonts from Google Fonts (free).
     "Instrument Serif" is used for headings — it has a literary, editorial feel.
@@ -1258,19 +1266,40 @@
         While waiting, the rest of the browser keeps working.
     */
 
+    // ── SUPABASE CONNECTION ───────────────────────────────────
+    /*
+      This sets up our connection to Supabase.
+
+      Think of it like dialling into a database server:
+      - SUPABASE_URL is the "address" of your database
+      - SUPABASE_KEY is the "password" to get in (anon/public key — read/write allowed)
+
+      supabase.createClient() returns a "client" object — a tool we use
+      throughout the app to read and write data.
+
+      WHY SUPABASE INSTEAD OF LOCALSTORAGE?
+      localStorage only exists in one browser on one device.
+      Supabase is a real database — your tasks exist on a server,
+      so you can access them from any device, any browser, anywhere.
+    */
+    const SUPABASE_URL = 'https://qnpfvapmrsdsyhkwhkcb.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucGZ2YXBtcnNkc3loa3doa2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDQyNTEsImV4cCI6MjA5NzA4MDI1MX0.fo_KwLw_c5ZbsM8FXI2oeqPAikr3Ja-4WV9HYmj5hTQ';
+
+    // supabase is loaded from the CDN script tag above
+    // createClient() gives us a db object we use to query our tables
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     // ── STORED STATE ──────────────────────────────────────────
     /*
-      These variables hold the app's data in memory.
-      They're loaded from localStorage when the app starts,
-      and saved back to localStorage whenever they change.
+      tasks and checkins now live in Supabase, not localStorage.
+      We still keep them in memory (these variables) for fast rendering —
+      but we load from Supabase on startup and write to Supabase on every change.
 
-      Think of it as RAM (fast, temporary) vs hard drive (slow, permanent).
-      localStorage is our "hard drive" here.
+      Think of it as: Supabase = the filing cabinet, tasks = the papers on your desk.
+      You load from the cabinet when you arrive, work from your desk, file back when done.
     */
-
-    // Load tasks from localStorage, or start with an empty array
-    let tasks    = JSON.parse(localStorage.getItem('m_tasks')    || '[]');
-    let checkins = JSON.parse(localStorage.getItem('m_checkins') || '[]');
+    let tasks    = [];   // loaded from Supabase in init()
+    let checkins = [];   // loaded from Supabase in init()
 
     // Track which category is selected in the add-task modal
     let activeCat  = 'study';
@@ -1278,30 +1307,129 @@
     let activeMood = null;
 
     /*
-      THE TASK DATA MODEL (what a single task looks like):
+      THE TASK DATA MODEL (matches the Supabase table columns exactly):
       {
-        id:       "1748123456789",   // unique number — Date.now() gives us this
-        name:     "Review renal lecture",
-        cat:      "study",           // "study" | "personal" | "free" | "health"
-        day:      0,                 // 0=Monday ... 6=Sunday
-        priority: "high",            // "high" | "medium" | "low"
-        done:     false,             // has the user ticked it?
-        created:  "2026-05-24T..."   // ISO timestamp
+        id:         1,               // auto-assigned by Supabase (int8)
+        name:       "Review renal lecture",
+        cat:        "study",         // "study" | "personal" | "free" | "health"
+        day:        0,               // 0=Monday ... 6=Sunday (int4)
+        priority:   "high",          // "high" | "medium" | "low"
+        is_done:    false,           // boolean — matches column name in Supabase
+        created_at: "2026-05-24T..." // auto-set by Supabase (timestamptz)
       }
+
+      NOTE: We use "is_done" (with underscore) to match the Supabase column name.
+      In the UI we still show it as "done" — we just map between them.
     */
 
-    // ── SAVE HELPERS ──────────────────────────────────────────
-    function saveTasks() {
+    // ── SUPABASE HELPERS ──────────────────────────────────────
+    /*
+      These functions talk to Supabase.
+      They're all "async" because network requests take time.
+      We "await" them so the app waits for the result before continuing.
+
+      WHAT IS async/await?
+      Imagine ordering food at a restaurant.
+      You don't stand frozen at the counter waiting — you sit down and wait.
+      async/await lets JavaScript "sit down" while waiting for the server (Supabase)
+      to respond, so the rest of the app keeps working normally.
+    */
+
+    async function loadTasksFromSupabase() {
       /*
-        JSON.stringify() converts a JavaScript object/array to a text string.
-        localStorage can only store text, not objects.
-        So we "stringify" before saving and "parse" when loading.
+        .from('tasks') → tell Supabase which table to query
+        .select('*')   → get all columns (* means "everything")
+        .order('created_at') → sort by when they were created (oldest first)
+
+        The result comes back as { data, error }
+        data = the array of tasks if successful
+        error = details if something went wrong
       */
-      localStorage.setItem('m_tasks', JSON.stringify(tasks));
+      const { data, error } = await db
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading tasks:', error.message);
+        return;
+      }
+
+      /*
+        Map Supabase's "is_done" column back to "done" for our UI.
+        This keeps the rest of the code unchanged — only the DB layer knows about is_done.
+      */
+      tasks = data.map(t => ({ ...t, done: t.is_done }));
+      // {...t} spreads all properties of t into a new object, then we add "done"
     }
 
-    function saveCheckins() {
-      localStorage.setItem('m_checkins', JSON.stringify(checkins));
+    async function loadCheckinsFromSupabase() {
+      const { data, error } = await db
+        .from('checkins')
+        .select('*');
+
+      if (error) {
+        console.error('Error loading checkins:', error.message);
+        return;
+      }
+      checkins = data || [];
+    }
+
+    async function addTaskToSupabase(task) {
+      /*
+        .insert() adds a new row to the tasks table.
+        We send only the fields Supabase needs — it handles id and created_at automatically.
+        returning: 'representation' means "send back the saved row so we have the real id".
+      */
+      const { data, error } = await db
+        .from('tasks')
+        .insert({
+          name:     task.name,
+          cat:      task.cat,
+          day:      task.day,
+          priority: task.priority,
+          is_done:  false
+        })
+        .select()
+        .single();
+      // .single() means "expect exactly one row back"
+
+      if (error) {
+        console.error('Error saving task:', error.message);
+        return null;
+      }
+
+      // Return the saved task with the real Supabase ID
+      return { ...data, done: data.is_done };
+    }
+
+    async function updateTaskInSupabase(id, changes) {
+      /*
+        .update() modifies an existing row.
+        .eq('id', id) means "WHERE id = [id]" — only update THIS task.
+
+        We use this when toggling a task done/undone.
+      */
+      const { error } = await db
+        .from('tasks')
+        .update(changes)
+        .eq('id', id);
+
+      if (error) console.error('Error updating task:', error.message);
+    }
+
+    async function addCheckinToSupabase(checkin) {
+      /*
+        upsert() = "insert OR update if it already exists"
+        onConflict: 'day' means: if a checkin for this day already exists, update it.
+        This prevents duplicate check-ins for the same day.
+      */
+      const { error } = await db
+        .from('checkins')
+        .upsert({ day: checkin.day, mood: checkin.mood, reflection: checkin.reflection },
+                 { onConflict: 'day' });
+
+      if (error) console.error('Error saving checkin:', error.message);
     }
 
     // ── DATE HELPERS ──────────────────────────────────────────
@@ -1336,14 +1464,15 @@
       return date.toLocaleDateString('en-AU', opts);
     }
 
-    // ── INITIALISATION ────────────────────────────────────────
-    function init() {
+    // ── INITIALISATION ────────────────────────────────────────────
+    async function init() {
       /*
-        init() runs when the page first loads (see the call at the bottom).
-        It sets up all the dynamic content that JavaScript controls.
+        init() is now async because it needs to wait for Supabase
+        to send back your tasks before it can render the page.
+        We "await" the data, THEN render — so no flicker of empty content.
       */
 
-      // Set the greeting based on time of day
+      // Set greeting based on time of day
       const hour = new Date().getHours();
       const greetEl = document.getElementById('greeting');
       if (greetEl) {
@@ -1366,10 +1495,19 @@
         weekEl.textContent = `${formatDate(mon, {day:'numeric',month:'short'})} – ${formatDate(sun, {day:'numeric',month:'short'})}`;
       }
 
-      // Set today's day as the default in the add-task modal
+      // Default to today's day in the add-task modal
       document.getElementById('new-task-day').value = getTodayIndex();
 
-      // Render all the dynamic content
+      /*
+        Load tasks and check-ins from Supabase in parallel.
+        Promise.all() runs both requests at the same time — faster than one then the other.
+        We wait for both to finish before rendering anything.
+      */
+      await Promise.all([
+        loadTasksFromSupabase(),
+        loadCheckinsFromSupabase()
+      ]);
+
       renderAll();
     }
 
@@ -1599,42 +1737,43 @@
       activeCat = cat;
     }
 
-    function saveTask() {
+    async function saveTask() {
+      /*
+        Now async because we wait for Supabase to confirm the save
+        before adding the task to our local array and re-rendering.
+        This means the ID comes from Supabase (not a timestamp) — more reliable.
+      */
       const nameInput = document.getElementById('new-task-name');
-      const name = nameInput.value.trim(); // .trim() removes leading/trailing spaces
-      if (!name) return; // don't save empty tasks
+      const name = nameInput.value.trim();
+      if (!name) return;
 
-      // Create the task object
-      const task = {
-        id:       Date.now().toString(), // unique ID based on current timestamp
+      const taskData = {
         name:     name,
         cat:      activeCat,
         day:      parseInt(document.getElementById('new-task-day').value),
-        // parseInt() converts "0" (string) to 0 (number)
         priority: document.getElementById('new-task-priority').value,
-        done:     false,
-        created:  new Date().toISOString(), // e.g. "2026-05-24T09:30:00.000Z"
       };
 
-      tasks.push(task); // add to our array
-      saveTasks();      // save to localStorage
-      closeModal();     // close the popup
-      nameInput.value = ''; // clear the input for next time
-      renderAll();      // update the UI
+      // Close the modal immediately so the UI feels fast
+      closeModal();
+      nameInput.value = '';
+
+      // Save to Supabase and get back the saved task (with its real ID)
+      const savedTask = await addTaskToSupabase(taskData);
+      if (savedTask) {
+        tasks.push(savedTask); // add to local array
+        renderAll();
+      }
     }
 
     // ── TASK INTERACTION ──────────────────────────────────────
-    function toggleTask(id) {
-      /*
-        Find the task with this ID and flip its "done" state.
-        true → false, false → true
-      */
-      const task = tasks.find(t => t.id === id);
-      // .find() returns the first item where the condition is true
+    async function toggleTask(id) {
+      /* Optimistic update: flip in UI immediately, then sync to Supabase */
+      const task = tasks.find(t => String(t.id) === String(id));
       if (task) {
-        task.done = !task.done; // ! means "not" — flips true/false
-        saveTasks();
+        task.done = !task.done;
         renderAll();
+        await updateTaskInSupabase(task.id, { is_done: task.done });
       }
     }
 
@@ -1748,10 +1887,13 @@ End with one specific thing they can do in the next hour.`;
       const days  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
       // Save the check-in (replace any existing one for today)
+      // Update local checkins array
       checkins = checkins.filter(c => c.day !== today);
-      checkins.push({ day: today, mood: activeMood, reflection, date: new Date().toISOString() });
-      saveCheckins();
+      const newCheckin = { day: today, mood: activeMood, reflection };
+      checkins.push(newCheckin);
       renderStreak();
+      // Save to Supabase in background
+      await addCheckinToSupabase(newCheckin);
 
       const loadingEl  = document.getElementById('acc-loading');
       const responseEl = document.getElementById('acc-response');
